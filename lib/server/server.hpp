@@ -1,11 +1,7 @@
-//
-// Created by chen on 2018/10/22.
-//
+#ifndef GAME_SERVER_SERVER_H
+#define GAME_SERVER_SERVER_H
 
-#ifndef WEBSOCKET_SERVER_H
-#define WEBSOCKET_SERVER_H
-
-#include "room/room.h"
+#include "lib/room/room.hpp"
 #include "websocket/websocket.h"
 #include <string>
 //#include "semaphore.h"
@@ -26,4 +22,4 @@ void broadcast(int epoll_fd);
 void roomcast(int epoll_fd,int socketFd,int eventId,cJSON *data);
 void deleteFromEpoll(int epoll_fd,int socketFd);
 
-#endif //WEBSOCKET_SERVER_H
+#endif //GAME_SERVER_SERVER_H
