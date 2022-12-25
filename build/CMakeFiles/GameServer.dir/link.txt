@@ -1,1 +1,0 @@
-/usr/bin/c++  -Wall CMakeFiles/GameServer.dir/main.cpp.o -o bin/GameServer  -Wl,-rpath,/usr/local/lib64 /usr/local/lib64/libcjson.so.1.7.15 /usr/lib64/libssl.so /usr/lib64/libcrypto.so -lm 

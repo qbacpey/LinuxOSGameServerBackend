@@ -1,7 +1,0 @@
-/home/qbacpey/LinuxOS/backend/build/CMakeFiles/GameServer.dir
-/home/qbacpey/LinuxOS/backend/build/CMakeFiles/room.dir
-/home/qbacpey/LinuxOS/backend/build/CMakeFiles/semaphore.dir
-/home/qbacpey/LinuxOS/backend/build/CMakeFiles/websocket.dir
-/home/qbacpey/LinuxOS/backend/build/CMakeFiles/server.dir
-/home/qbacpey/LinuxOS/backend/build/CMakeFiles/edit_cache.dir
-/home/qbacpey/LinuxOS/backend/build/CMakeFiles/rebuild_cache.dir
