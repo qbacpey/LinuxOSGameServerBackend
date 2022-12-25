@@ -4,7 +4,7 @@
 int main()
 {
     int listen_fd = passive_server(8008, 20);
-    int connFd;
+    int conn_fd;
 
     struct sockaddr_in client_addr;
     socklen_t addr_length = sizeof(client_addr);
@@ -16,6 +16,7 @@ int main()
         perror("epoll_create failed\n");
         exit(EXIT_FAILURE);
     }
+    server:epoll_fd = epoll_fd;
 
     struct epoll_event event;
     struct epoll_event events[MAX_EVENTS];
@@ -31,6 +32,7 @@ int main()
     }
     printf("listen:%d\n", listen_fd);
     int nfds;
+    using server::Player;
     while (true)
     {
         nfds = epoll_wait(epoll_fd, events, MAX_EVENTS, 10);
@@ -45,31 +47,35 @@ int main()
 
         for (int i = 0; i < nfds; ++i)
         {
+            // 建立链接
             if (events[i].data.fd == listen_fd)
             {
-                if ((connFd = accept(listen_fd, (struct sockaddr *)&client_addr, &addr_length)) < 0)
+                if ((conn_fd = accept(listen_fd, (struct sockaddr *)&client_addr, &addr_length)) < 0)
                 {
                     perror("accept conn_fd failed");
                     exit(EXIT_FAILURE);
                 }
-                printf("accept:%d\n", connFd);
-                shakehands(connFd);
+                printf("accept:%d\n", conn_fd);
+                shakehands(conn_fd);
                 printf("shakerhands\n");
-                player newPlayer;
-                mapPlayer[connFd] = newPlayer;
+                Player new_player;
+                new_player.player_id = conn_fd;
+                new_player.socket_fd = conn_fd;
+                new_player.room_id = -1;
+                new_player.playing = false;
 
-                event.events = EPOLLOUT; // 表示对应的文件描述符可读（包括对端SOCKET正常关闭）
-                mapPlayer[connFd].event = 1;
-                event.data.fd = connFd; // 将connFd设置为要读取的文件描述符
+                event.events = EPOLLIN; // 监控读取事件
                 // event.data.ptr = &head;
-                if (epoll_ctl(epoll_fd, EPOLL_CTL_ADD, connFd, &event) == -1)
+                if (epoll_ctl(epoll_fd, EPOLL_CTL_ADD, conn_fd, &event) == -1)
                 {
                     perror("epoll_ctl:conn_fd register failed");
                     exit(EXIT_FAILURE);
                 }
             }
-            else if (events[i].events & EPOLLIN)
+            // 处理请求
+            else
             {
+                server::ServerRequest(events[i]);
             }
         }
     }

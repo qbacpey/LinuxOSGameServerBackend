@@ -3,7 +3,7 @@
 
 #include <string>
 
-namespace Room
+namespace room
 {
     enum class RoomState
     {

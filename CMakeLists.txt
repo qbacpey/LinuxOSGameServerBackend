@@ -24,6 +24,7 @@ add_executable(${PROJECT_NAME} ${SOURCES})
 add_library(room STATIC lib/room/room.cpp)
 add_library(semaphore STATIC lib/semaphore/semaphore.cpp)
 add_library(websocket STATIC lib/websocket/websocket.cpp)
+add_library(server STATIC lib/server/server.cpp)
 
 # 使用系统中的cJSON库
 # 由于路径特别，需要在已有CMAKE_MODULE_PATH中添加

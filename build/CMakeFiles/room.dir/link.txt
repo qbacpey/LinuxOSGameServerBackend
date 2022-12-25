@@ -1,0 +1,2 @@
+/usr/bin/ar qc libroom.a CMakeFiles/room.dir/lib/room/room.cpp.o
+/usr/bin/ranlib libroom.a

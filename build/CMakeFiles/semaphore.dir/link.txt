@@ -1,0 +1,2 @@
+/usr/bin/ar qc libsemaphore.a CMakeFiles/semaphore.dir/lib/semaphore/semaphore.cpp.o
+/usr/bin/ranlib libsemaphore.a

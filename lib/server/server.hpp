@@ -4,22 +4,35 @@
 #include "lib/room/room.hpp"
 #include "websocket/websocket.h"
 #include <string>
-//#include "semaphore.h"
-
-using namespace std;
-
+// #include "semaphore.h"
 #include <map>
 
-struct player {
-    int room_id = -1;
-    int event = -1;//1表示房间请求;2表示开始;3消息转发
-    cJSON *msg1 = NULL;
-    cJSON *msg2 = NULL;
-    int playing = 0;
-};
+namespace server
+{
+    struct Player
+    {
+        int player_id; // 暂定就是socketfd
+        int socket_fd;
+        int room_id;
+        bool playing;
+    };
 
-void broadcast(int epoll_fd);
-void roomcast(int epoll_fd,int socketFd,int eventId,cJSON *data);
-void deleteFromEpoll(int epoll_fd,int socketFd);
+    enum class RoomURL
+    {
+        kCreateRoom,
+        kJoinRoom,
+        kBroadcastRoom,
+        kStartGame,
+        kHeartbeat
+    };
 
-#endif //GAME_SERVER_SERVER_H
+    using PlayerId = int;
+    std::map<PlayerId, Player> players{};
+    int epoll_fd;
+
+    // 请求处理函数1.0
+    void ServerRequest(epoll_event event);
+
+} // namespace server
+
+#endif // GAME_SERVER_SERVER_H
