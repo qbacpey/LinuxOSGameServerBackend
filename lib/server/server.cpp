@@ -57,7 +57,8 @@ void server::set_global_room_id(int _global_room_id)
 bool ParseRequest(epoll_event *event, char *payload_data);
 bool ProressRequest(epoll_event *event, char *payload_data);
 void BroadCastRooms();
-void ReturnNewCreatedRoom(int host_id, Room &new_room);
+void ResponseNewCreatedRoom(int host_id, Room &new_room);
+void ResponseStartGaming(Room &room);
 static void PackageRoomJson(cJSON *item, Room &new_room);
 
 // 先不考虑写入中断的情况，必然是EPOLLIN事件
@@ -109,7 +110,7 @@ bool ProressRequest(epoll_event *event, char *payload_data)
             Room new_room(server::get_new_global_room_id(), roomName, client_id);
             server::add_room(new_room.room_id(), new_room);
             server::get_player(client_id).room_id = new_room.room_id();
-            ReturnNewCreatedRoom(client_id, new_room);
+            ResponseNewCreatedRoom(client_id, new_room);
             BroadCastRooms();
             return true;
         }
@@ -117,16 +118,21 @@ bool ProressRequest(epoll_event *event, char *payload_data)
         {
             printf("kJoinRoom\n");
             RoomId room_id = cJSON_GetNumberValue(cJSON_GetObjectItem(cJSON_GetObjectItem(data, "body"), "room_id"));
-            Room& room = server::get_room(room_id);
-            room.JoinRoom(2);
-            ReturnNewCreatedRoom(room.host_id(), room);
-            ReturnNewCreatedRoom(client_id, room);
+            Room &room = server::get_room(room_id);
+            room.JoinRoom(client_id);
+            ResponseNewCreatedRoom(room.host_id(), room);
+            ResponseNewCreatedRoom(client_id, room);
             BroadCastRooms();
             return true;
         }
         case RoomURL::kStartGame:
         {
             printf("kStartGame\n");
+            RoomId room_id = cJSON_GetNumberValue(cJSON_GetObjectItem(cJSON_GetObjectItem(data, "body"), "room_id"));
+            Room &room = server::get_room(room_id);
+            room.StartGaming();
+            ResponseStartGaming(room);
+            BroadCastRooms();
             return true;
         }
         case RoomURL::kHeartbeat:
@@ -200,7 +206,7 @@ void BroadCastRooms()
 }
 
 // 将新创建的房间返回给房主
-void ReturnNewCreatedRoom(int host_id, Room &new_room)
+void ResponseNewCreatedRoom(int host_id, Room &new_room)
 {
     cJSON *response = cJSON_CreateObject();
     cJSON_AddNumberToObject(response, "type", double(server::RoomURL::kCreateRoom));
@@ -209,7 +215,20 @@ void ReturnNewCreatedRoom(int host_id, Room &new_room)
     PackageRoomJson(room, new_room);
     if (send_msg(host_id, cJSON_PrintUnformatted(response)) == -1)
     {
-        perror("ReturnNewCreatedRoom fail!");
+        perror("ResponseNewCreatedRoom fail!");
+        exit(-1);
+    }
+}
+
+// 向房客发送开始游戏信号
+void ResponseStartGaming(Room &room)
+{
+    cJSON *response = cJSON_CreateObject();
+    cJSON_AddNumberToObject(response, "type", double(server::RoomURL::kStartGame));
+    cJSON_AddNumberToObject(response, "room_id", room.room_id());
+    if (send_msg(room.guest_id(), cJSON_PrintUnformatted(response)) == -1)
+    {
+        perror("ResponseStartGaming fail!");
         exit(-1);
     }
 }
