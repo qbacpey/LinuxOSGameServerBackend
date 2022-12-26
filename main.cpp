@@ -75,6 +75,8 @@ int main()
                     perror("epoll_ctl:conn_fd register failed");
                     exit(EXIT_FAILURE);
                 }
+                // 链接建立之后响应其id
+                server::ResponseNewPlayerId(conn_fd);
             }
             // 处理请求
             else

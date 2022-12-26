@@ -57,6 +57,8 @@ void server::set_global_room_id(int _global_room_id)
 bool ParseRequest(epoll_event *event, char *payload_data);
 bool ProressRequest(epoll_event *event, char *payload_data);
 void BroadCastRooms();
+void ReturnNewCreatedRoom(int host_id, Room &new_room);
+static void PackageRoomJson(cJSON *item, Room &new_room);
 
 // 先不考虑写入中断的情况，必然是EPOLLIN事件
 void server::ServerRequest(epoll_event event)
@@ -69,13 +71,25 @@ void server::ServerRequest(epoll_event event)
     ProressRequest(&event, payload_data);
 }
 
+void server::ResponseNewPlayerId(int host_id)
+{
+    cJSON *response = cJSON_CreateObject();
+    cJSON_AddNumberToObject(response, "type", double(server::RoomURL::kLogin));
+    cJSON_AddNumberToObject(response, "host_id", host_id);
+    if (send_msg(host_id, cJSON_PrintUnformatted(response)) == -1)
+    {
+        perror("BroadCastRooms fail!");
+        exit(-1);
+    }
+}
+
 bool ProressRequest(epoll_event *event, char *payload_data)
 {
     printf("ProressRequest\n");
     cJSON *data = cJSON_Parse(payload_data);
     cJSON *response = cJSON_CreateObject();
     // 用户socket_fd实际就是用户的ID，因此可以直接用
-    int host_id = event->data.fd;
+    int client_id = event->data.fd;
     if (!data)
     {
         printf("Error before:[%s]\n", cJSON_GetErrorPtr());
@@ -92,15 +106,22 @@ bool ProressRequest(epoll_event *event, char *payload_data)
         {
             printf("kCreateRoom\n");
             string roomName(cJSON_GetStringValue(cJSON_GetObjectItem(cJSON_GetObjectItem(data, "body"), "roomName")));
-            Room new_room(server::get_new_global_room_id(), roomName, host_id);
+            Room new_room(server::get_new_global_room_id(), roomName, client_id);
             server::add_room(new_room.room_id(), new_room);
-            server::get_player(host_id).room_id = new_room.room_id();
+            server::get_player(client_id).room_id = new_room.room_id();
+            ReturnNewCreatedRoom(client_id, new_room);
             BroadCastRooms();
             return true;
         }
         case RoomURL::kJoinRoom:
         {
             printf("kJoinRoom\n");
+            RoomId room_id = cJSON_GetNumberValue(cJSON_GetObjectItem(cJSON_GetObjectItem(data, "body"), "room_id"));
+            Room& room = server::get_room(room_id);
+            room.JoinRoom(2);
+            ReturnNewCreatedRoom(room.host_id(), room);
+            ReturnNewCreatedRoom(client_id, room);
+            BroadCastRooms();
             return true;
         }
         case RoomURL::kStartGame:
@@ -164,12 +185,7 @@ void BroadCastRooms()
     for (auto &iter : *rooms)
     {
         cJSON *item = cJSON_CreateObject();
-        cJSON_AddNumberToObject(item, "room_id", iter.second.room_id());
-        cJSON_AddStringToObject(item, "room_name", iter.second.room_name().c_str());
-        cJSON_AddNumberToObject(item, "count", iter.second.count());
-        cJSON_AddNumberToObject(item, "host_id", iter.second.host_id());
-        cJSON_AddNumberToObject(item, "guest_id", iter.second.guest_id());
-        cJSON_AddNumberToObject(item, "state", double(iter.second.state()));
+        PackageRoomJson(item, iter.second);
         cJSON_AddItemToArray(rooms_response, item);
     }
     // 广播房间给所有玩家
@@ -181,4 +197,29 @@ void BroadCastRooms()
             exit(-1);
         }
     }
+}
+
+// 将新创建的房间返回给房主
+void ReturnNewCreatedRoom(int host_id, Room &new_room)
+{
+    cJSON *response = cJSON_CreateObject();
+    cJSON_AddNumberToObject(response, "type", double(server::RoomURL::kCreateRoom));
+    cJSON *room = cJSON_CreateObject();
+    cJSON_AddItemToObject(response, "room", room);
+    PackageRoomJson(room, new_room);
+    if (send_msg(host_id, cJSON_PrintUnformatted(response)) == -1)
+    {
+        perror("ReturnNewCreatedRoom fail!");
+        exit(-1);
+    }
+}
+
+static void PackageRoomJson(cJSON *item, Room &new_room)
+{
+    cJSON_AddNumberToObject(item, "room_id", new_room.room_id());
+    cJSON_AddStringToObject(item, "room_name", new_room.room_name().c_str());
+    cJSON_AddNumberToObject(item, "count", new_room.count());
+    cJSON_AddNumberToObject(item, "host_id", new_room.host_id());
+    cJSON_AddNumberToObject(item, "guest_id", new_room.guest_id());
+    cJSON_AddNumberToObject(item, "state", double(new_room.state()));
 }

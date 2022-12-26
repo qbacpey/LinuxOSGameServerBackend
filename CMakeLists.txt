@@ -21,14 +21,15 @@ set(SOURCES main.cpp)
 add_executable(${PROJECT_NAME} ${SOURCES})
 
 # 添加库目标
+add_library(server STATIC lib/server/server.cpp)
 add_library(room STATIC lib/room/room.cpp)
 add_library(semaphore STATIC lib/semaphore/semaphore.cpp)
 add_library(websocket STATIC lib/websocket/websocket.cpp)
-add_library(server STATIC lib/server/server.cpp)
 
 
 # 链接库
-target_link_libraries(${PROJECT_NAME} PRIVATE room websocket semaphore server)
+# 这里由于server会使用到room.cpp中的实现，因此似乎要把server放在前面
+target_link_libraries(${PROJECT_NAME} PRIVATE websocket semaphore server room)
 
 # 使用系统中的cJSON库
 # 由于路径特别，需要在已有CMAKE_MODULE_PATH中添加

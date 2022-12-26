@@ -23,7 +23,9 @@ namespace server
         kJoinRoom,
         kBroadcastRoom,
         kStartGame,
-        kHeartbeat
+        kHeartbeat,
+        kLogin,
+        kUpdateRoomState
     };
 
     using PlayerId = int;
@@ -36,6 +38,8 @@ namespace server
     // 获取一个新的房间ID，需要从零开始递增
     int get_new_global_room_id();
     void set_global_room_id(int _global_room_id);
+
+    void ResponseNewPlayerId(int host_id);
 
     
     void add_room(room::RoomId room_id, room::Room &room);
