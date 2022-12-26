@@ -59,6 +59,7 @@ bool ProressRequest(epoll_event *event, char *payload_data);
 void BroadCastRooms();
 void ResponseNewCreatedRoom(int host_id, Room &new_room);
 void ResponseStartGaming(Room &room);
+void ResponseHeartbeat(int target_id, cJSON *body);
 static void PackageRoomJson(cJSON *item, Room &new_room);
 
 // 先不考虑写入中断的情况，必然是EPOLLIN事件
@@ -138,6 +139,8 @@ bool ProressRequest(epoll_event *event, char *payload_data)
         case RoomURL::kHeartbeat:
         {
             printf("kHeartbeat\n");
+            cJSON *body = cJSON_GetObjectItem(data, "body");
+            ResponseHeartbeat(cJSON_GetNumberValue(cJSON_GetObjectItem(body, "target_id")), body);
             return true;
         }
         default:
@@ -229,6 +232,20 @@ void ResponseStartGaming(Room &room)
     if (send_msg(room.guest_id(), cJSON_PrintUnformatted(response)) == -1)
     {
         perror("ResponseStartGaming fail!");
+        exit(-1);
+    }
+}
+
+// 向对手心跳
+void ResponseHeartbeat(int target_id, cJSON *body)
+{
+    printf("target_id:%d\n", target_id);
+    cJSON *response = cJSON_CreateObject();
+    cJSON_AddNumberToObject(response, "type", double(server::RoomURL::kHeartbeat));
+    cJSON_AddItemToObject(response, "body", body);
+    if (send_msg(target_id, cJSON_PrintUnformatted(response)) == -1)
+    {
+        perror("ResponseHeartbeat fail!");
         exit(-1);
     }
 }
