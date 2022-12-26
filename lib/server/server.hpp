@@ -37,6 +37,10 @@ namespace server
     int get_new_global_room_id();
     void set_global_room_id(int _global_room_id);
 
+    
+    void add_room(room::RoomId room_id, room::Room &room);
+    room::Room &get_room(room::RoomId room_id);
+
     // 请求处理函数1.0
     void ServerRequest(epoll_event event);
 

@@ -11,11 +11,13 @@ namespace room
         kGaming
     };
 
+    using RoomId = int;
+
     class Room
     {
     public:
         // 构造函数
-        Room(int room_id, const std::string &room_name, int host_id) : room_id_(room_id),
+        Room(int room_id, const std::string& room_name, int host_id) : room_id_(room_id),
                                                                     room_name_(room_name),
                                                                     host_id_(host_id)
                                                                     {};
