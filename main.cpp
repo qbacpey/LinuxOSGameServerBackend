@@ -68,6 +68,7 @@ int main()
                 server::add_player(new_player.player_id, new_player);
 
                 event.events = EPOLLIN; // 监控读取事件
+                event.data.fd = conn_fd;
                 // event.data.ptr = &head;
                 if (epoll_ctl(epoll_fd, EPOLL_CTL_ADD, conn_fd, &event) == -1)
                 {

@@ -71,14 +71,12 @@ bool ProressRequest(epoll_event *event, char *payload_data)
         using server::RoomURL;
         using std::string;
         RoomURL type = server::RoomURL(cJSON_GetObjectItem(data, "type")->valueint);
-        printf("type:%d\n", type);
         switch (type)
         {
         case RoomURL::kCreateRoom:
         {
             printf("kCreateRoom\n");
             string roomName(cJSON_GetStringValue(cJSON_GetObjectItem(cJSON_GetObjectItem(data, "body"), "roomName")));
-            std::cout << "roomName: " << roomName << std::endl;
             return true;
         }
         }
@@ -87,7 +85,6 @@ bool ProressRequest(epoll_event *event, char *payload_data)
 
 bool ParseRequest(epoll_event *event, char *payload_data)
 {
-    printf("receive %d\n", event->data.fd);
     frame_head head;
     int rul = recv_frame_head(event->data.fd, &head);
     if (rul < 0)
@@ -114,6 +111,5 @@ bool ParseRequest(epoll_event *event, char *payload_data)
         printf("socket %d close\n", event->data.fd, payload_data, 1024);
         // TODO deleteFromEpoll(epoll_fd, event->data.fd);
     }
-    printf("receive data(%d)\n", head.payload_length);
     return true;
 }
