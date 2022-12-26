@@ -11,10 +11,6 @@ namespace room
         kGaming
     };
 
-    // 获取一个新的房间ID，需要从零开始递增
-    int FetchNewRoomID();
-    int *global_room_id = 0;
-
     class Room
     {
     public:

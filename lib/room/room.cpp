@@ -19,8 +19,3 @@ bool room::Room::StartGaming(){
     this->state_ = RoomState::kGaming;
 }
 
-// TODO 需要是线程安全的，到时候再上保护
-int room::FetchNewRoomID(){
-    *global_room_id++;
-    return *global_room_id;
-}

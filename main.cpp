@@ -19,10 +19,7 @@ int main()
     }
 
     using server::Player;
-    server::epoll_instance_fd = new int(0);
-    *server::epoll_instance_fd = epoll_fd;
-    *server::players = new std::map<server::PlayerId, Player>();
-    room::global_room_id = new int(0);
+    server::initialize_server(epoll_fd);
 
     struct epoll_event event;
     struct epoll_event events[MAX_EVENTS];
@@ -68,6 +65,7 @@ int main()
                 new_player.socket_fd = conn_fd;
                 new_player.room_id = -1;
                 new_player.playing = false;
+                server::add_player(new_player.player_id, new_player);
 
                 event.events = EPOLLIN; // 监控读取事件
                 // event.data.ptr = &head;

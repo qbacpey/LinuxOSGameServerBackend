@@ -27,8 +27,15 @@ namespace server
     };
 
     using PlayerId = int;
-    std::map<PlayerId, Player> *players;
-    int *epoll_instance_fd;
+
+    void initialize_server(int epoll_fd);
+    void add_player(PlayerId player_id, Player &player);
+    Player &get_player(PlayerId player_id);
+    int get_epoll_fd();
+    void set_epoll_fd(int epoll_fd);
+    // 获取一个新的房间ID，需要从零开始递增
+    int get_new_global_room_id();
+    void set_global_room_id(int _global_room_id);
 
     // 请求处理函数1.0
     void ServerRequest(epoll_event event);

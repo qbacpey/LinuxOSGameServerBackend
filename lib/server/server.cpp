@@ -1,9 +1,50 @@
 #include "server.hpp"
 #include <iostream>
 
+std::map<server::PlayerId, server::Player> *players;
+int epoll_instance_fd;
+// TODO 需要是线程安全的，到时候再上保护
+int global_room_id = 0;
+
 // 将webSocket中的数据读取到payload_data中
 bool ParseRequest(epoll_event *event, char *payload_data);
 bool ProressRequest(epoll_event *event, char *payload_data);
+
+void server::initialize_server(int epoll_fd)
+{
+    players = new std::map<PlayerId, Player>;
+    epoll_instance_fd = epoll_fd;
+}
+
+void server::add_player(PlayerId player_id, Player &player)
+{
+    std::cout << "new player connected, player id=" << player.player_id << std::endl;
+    players->insert({player_id, player});
+}
+
+server::Player &server::get_player(PlayerId player_id)
+{
+    return players->at(player_id);
+}
+
+int server::get_epoll_fd()
+{
+    return epoll_instance_fd;
+}
+
+void server::set_epoll_fd(int epoll_fd)
+{
+    epoll_instance_fd = epoll_fd;
+}
+int server::get_new_global_room_id()
+{
+    return ++global_room_id;
+}
+
+void server::set_global_room_id(int _global_room_id)
+{
+    global_room_id = _global_room_id;
+}
 
 // 先不考虑写入中断的情况，必然是EPOLLIN事件
 void server::ServerRequest(epoll_event event)
@@ -31,13 +72,15 @@ bool ProressRequest(epoll_event *event, char *payload_data)
         using std::string;
         RoomURL type = server::RoomURL(cJSON_GetObjectItem(data, "type")->valueint);
         printf("type:%d\n", type);
-        switch (type){
-            case RoomURL::kCreateRoom: {
-                printf("kCreateRoom\n");
-                string roomName(cJSON_GetStringValue(cJSON_GetObjectItem(cJSON_GetObjectItem(data, "body"), "roomName")));
-                std::cout<< "roomName: " << roomName << std::endl;
-                return true;
-            }
+        switch (type)
+        {
+        case RoomURL::kCreateRoom:
+        {
+            printf("kCreateRoom\n");
+            string roomName(cJSON_GetStringValue(cJSON_GetObjectItem(cJSON_GetObjectItem(data, "body"), "roomName")));
+            std::cout << "roomName: " << roomName << std::endl;
+            return true;
+        }
         }
     }
 }
