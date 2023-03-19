@@ -6,6 +6,8 @@
 #include <string>
 // #include "semaphore.h"
 #include <map>
+#include <queue>
+#include <pthread.h>
 
 namespace server
 {
@@ -28,6 +30,30 @@ namespace server
         kUpdateRoomState
     };
 
+    enum class ReadStatus{
+        kReadingHeader,
+        kReadingBody,
+        kClear
+    };
+
+    enum class WriteStatus{
+        kWriteHeader,
+        kClear
+    };
+
+    struct WebSocketStatus {
+        int conn_fd; // 连接的文件描述符
+
+        std::string read; // 已经读取到的数据，是字符串
+        std::string::size_type read_n; // 已读取的数据
+        std::string::size_type total_n; // 总体需要读取的数据
+        ReadStatus read_status; // 请求读取情况
+
+        std::queue<std::string> responses; // 等待写入的请求
+        std::string::size_type write_n; // 当前请求写入情况
+        WriteStatus write_status; // 请求写入情况
+    };
+
     using PlayerId = int;
 
     void initialize_server(int epoll_fd);
@@ -47,6 +73,7 @@ namespace server
 
     // 请求处理函数1.0
     void ServerRequest(epoll_event event);
+    void ServerRequest(epoll_event event, struct WebSocketStatus *status);
 
 } // namespace server
 

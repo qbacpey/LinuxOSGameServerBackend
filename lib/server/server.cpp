@@ -5,6 +5,7 @@ using namespace room;
 
 std::map<server::PlayerId, server::Player> *players;
 std::map<room::RoomId, room::Room> *rooms;
+pthread_mutex_t mutex;
 int epoll_instance_fd;
 // TODO 需要是线程安全的，到时候再上保护
 int global_room_id = 0;
@@ -45,7 +46,10 @@ void server::set_epoll_fd(int epoll_fd)
 }
 int server::get_new_global_room_id()
 {
-    return ++global_room_id;
+    pthread_mutex_lock(&mutex);
+    int result = ++global_room_id;
+    pthread_mutex_unlock(&mutex);
+    return result;
 }
 
 void server::set_global_room_id(int _global_room_id)
@@ -55,12 +59,14 @@ void server::set_global_room_id(int _global_room_id)
 
 // 将webSocket中的数据读取到payload_data中
 bool ParseRequest(epoll_event *event, char *payload_data);
-bool ProressRequest(epoll_event *event, char *payload_data);
+bool ProressRequest(epoll_event *event, const char *payload_data);
 void BroadCastRooms();
 void ResponseNewCreatedRoom(int host_id, Room &new_room);
 void ResponseStartGaming(Room &room);
 void ResponseHeartbeat(int target_id, cJSON *body);
 static void PackageRoomJson(cJSON *item, Room &new_room);
+static int ReadUntillCountOrError(std::string &read, std::string::size_type count);
+static int ParseWebSocketHeader(std::string &read);
 
 // 先不考虑写入中断的情况，必然是EPOLLIN事件
 void server::ServerRequest(epoll_event event)
@@ -71,6 +77,106 @@ void server::ServerRequest(epoll_event event)
         throw("ParseRequest");
     }
     ProressRequest(&event, payload_data);
+}
+
+void server::ServerRequest(epoll_event event, struct WebSocketStatus *status)
+{
+    int conn_fd = status->conn_fd;
+
+    // 输入事件
+    if (event.events & EPOLLIN)
+    {
+        switch (status->read_status)
+        {
+        case ReadStatus::kClear:
+        {
+            // 上次读取无数据剩余，可直接读取请求
+            if ((status->read_n = ReadUntillCountOrError(status->read, MAX_HEADER)) != MAX_HEADER)
+            {
+                // 头部未读取完，标记状态为kReadingHeader，下次继续读取
+                status->read_status = ReadStatus::kReadingHeader;
+                break;
+            }
+            // 头部读取完毕，解析头部，获取WebSocket数据体长度
+            int payload_length = ParseWebSocketHeader(status->read);
+            status->read.clear();
+            status->read_n = 0;
+            // 读取数据体
+            if ((status->read_n = ReadUntillCountOrError(status->read, payload_length)) != payload_length)
+            {
+                // 数据体未读取完，标记状态为kReadingBody，下次继续读取
+                status->read_status = ReadStatus::kReadingBody;
+                status->total_n = payload_length;
+                break;
+            }
+            // 数据体读取完毕，处理请求
+            ProressRequest(&event, status->read.c_str());
+            status->read_n = 0;
+            status->read.clear();
+            status->read_status = ReadStatus::kClear;
+            break;
+        }
+        case ReadStatus::kReadingHeader:
+        {
+            // 上次在读取头部的时候被中断了，需要继续读取头部数据
+            int left_header = MAX_HEADER - status->read_n;
+            int new_read_data = 0;
+            if ((new_read_data = ReadUntillCountOrError(status->read, left_header)) != left_header)
+            {
+                // 头部未读取完，标记状态为kReadingHeader，下次继续读取
+                status->read_n += new_read_data;
+                status->read_status = ReadStatus::kReadingHeader;
+                break;
+            }
+            // 头部读取完毕，解析头部，获取WebSocket数据体长度
+            int payload_length = ParseWebSocketHeader(status->read);
+            status->read.clear();
+            status->read_n = 0;
+            // 读取数据体
+            if ((status->read_n = ReadUntillCountOrError(status->read, payload_length)) != payload_length)
+            {
+                // 数据体未读取完，标记状态为kReadingBody，下次继续读取
+                status->read_status = ReadStatus::kReadingBody;
+                status->total_n = payload_length;
+                break;
+            }
+            // 数据体读取完毕，处理请求
+            ProressRequest(&event, status->read.c_str());
+            status->read_n = 0;
+            status->read.clear();
+            status->read_status = ReadStatus::kClear;
+            break;
+        }
+        case ReadStatus::kReadingBody:
+        {
+            // 上次在读取数据体的时候被中断了，需要继续读取数据体
+            int left_body = status->total_n - status->read_n;
+            int new_read_data = 0;
+            if ((new_read_data = ReadUntillCountOrError(status->read, left_body)) != left_body)
+            {
+                // 头部未读取完，标记状态为kReadingHeader，下次继续读取
+                status->read_n += new_read_data;
+                status->read_status = ReadStatus::kReadingBody;
+                break;
+            }
+            // 数据体读取完毕，处理请求
+            ProressRequest(&event, status->read.c_str());
+            status->read_n = 0;
+            status->read.clear();
+            status->read_status = ReadStatus::kClear;
+            break;
+        }
+        default:
+        {
+            perror("输入事件不合法");
+            break;
+        }
+        }
+    }
+
+    if (event.events & EPOLLOUT)
+    {
+    }
 }
 
 void server::ResponseNewPlayerId(int host_id)
@@ -85,7 +191,7 @@ void server::ResponseNewPlayerId(int host_id)
     }
 }
 
-bool ProressRequest(epoll_event *event, char *payload_data)
+bool ProressRequest(epoll_event *event, const char *payload_data)
 {
     printf("ProressRequest\n");
     cJSON *data = cJSON_Parse(payload_data);
